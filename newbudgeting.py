@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 import psycopg2
-import plotly.graph_objects as go
 import hashlib
 import os
 import datetime
