@@ -113,71 +113,77 @@ def app():
     deadline = datetime.date(2024, 10, 27)
     current_date = datetime.date.today()
 
-        # Überprüfen, ob das aktuelle Datum vor oder gleich der Deadline liegt
+    # Überprüfen, ob das aktuelle Datum vor oder gleich der Deadline liegt
     if current_date <= deadline:
-            with st.expander("Instructions"):
-                st.write("Instructions go here")
+        with st.expander("Instructions"):
+            st.write("Instructions go here")
 
-            st.write("")
+        st.write("")
 
-            # Verwende einen Container für die Strukturierung
-            with st.container():
-                st.subheader("Enter an expense")
-                
-                # Eingabe der Felder
-                title = st.text_input("Title of the expense (mandatory)")
-                description = st.text_input("Description (optional)")
-                
-                enter_date = st.radio("Is the expense associated with a specific date, and if so, is the date known?", 
-                                    ("Not associated with a specific date", "specific date unknown", "specific date known"))
+        # Verwende einen Container für die Strukturierung
+        with st.container():
+            st.subheader("Enter an expense")
+            
+            # Eingabe der Felder
+            title = st.text_input("Title of the expense (mandatory)")
+            description = st.text_input("Description (mandatory)")
+            
+            enter_date = st.radio("Is the expense associated with a specific date, and if so, is the date known?", 
+                                ("Not associated with a specific date", "specific date unknown", "specific date known"))
 
-                if enter_date == "specific date known":
-                    date = st.date_input("Enter the (first) date of the expense YYYY-MM-DD").strftime('%Y-%m-%d')  # Formatierung als String
-                elif enter_date == "specific date unknown":
-                    date = "unknown"
-                else:
-                    date = None
+            if enter_date == "specific date known":
+                date = st.date_input("Enter the (first) date of the expense YYYY-MM-DD").strftime('%Y-%m-%d')  # Formatierung als String
+            elif enter_date == "specific date unknown":
+                date = "unknown"
+            else:
+                date = None
 
-            # Zweiter Container für Beträge
-            with st.container():
-                guaranteed_amount = st.radio("Is the amount of the expense guaranteed (there is a bill or binding offer) or does it have to be estimated?", 
-                                            ("Exact amount known", "Estimation"))
+        # Zweiter Container für Beträge
+        with st.container():
+            guaranteed_amount = st.radio("Is the amount of the expense guaranteed (there is a bill or binding offer) or does it have to be estimated?", 
+                                        ("Exact amount known", "Estimation"))
 
-                if guaranteed_amount == "Exact amount known":
-                    exact_amount = st.number_input("Enter the exact amount of the expense in CHF")
-                    estimated = None
-                    conservative = None
-                    worst_case = None
-                elif guaranteed_amount == "Estimation":
-                    exact_amount = None
-                    col1, col2, col3 = st.columns(3)  # Spalten für die geschätzten Beträge
-                    with col1:
-                        estimated = st.number_input("Estimated amount in CHF")
-                    with col2:
-                        conservative = st.number_input("Conservative estimate in CHF")
-                    with col3:
-                        worst_case = st.number_input("Worst-case amount in CHF")
+            if guaranteed_amount == "Exact amount known":
+                exact_amount = st.number_input("Enter the exact amount of the expense in CHF")
+                estimated = None
+                conservative = None
+                worst_case = None
+            elif guaranteed_amount == "Estimation":
+                exact_amount = None
+                col1, col2, col3 = st.columns(3)  # Spalten für die geschätzten Beträge
+                with col1:
+                    estimated = st.number_input("Estimated amount in CHF")
+                with col2:
+                    conservative = st.number_input("Conservative estimate in CHF")
+                with col3:
+                    worst_case = st.number_input("Worst-case amount in CHF")
 
-            # Eingabe für Priorität
-            priority = st.number_input("Priority of the expense", min_value=1, max_value=5)
-            # Submit-Button rechtsbündig
-            st.markdown("""
-                <style>
-                .stButton button {
-                    float: right;
-                }
-                </style>
-                """, unsafe_allow_html=True)
+        # Eingabe für Priorität
+        priority = st.number_input("Priority of the expense", min_value=1, max_value=5)
 
-            if st.button("Submit"):
-                # Überprüfen, ob das Pflichtfeld Titel ausgefüllt ist
-                if title:
-                    insert_expense(title, description, date, exact_amount, estimated, conservative, worst_case, priority)
-                else:
-                    st.error("Title is a mandatory field!")
-        
+        # Submit-Button rechtsbündig
+        st.markdown("""
+            <style>
+            .stButton button {
+                float: right;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+        # Überprüfen, ob beide Pflichtfelder ausgefüllt sind
+        if st.button("Submit"):
+            if title and description:
+                insert_expense(title, description, date, exact_amount, estimated, conservative, worst_case, priority)
+            else:
+                st.error("Both Title and Description are mandatory fields!")
+
+        # Füge einen Button hinzu, um die App neu zu laden
+        if st.button("Refresh to view changes"):
+            st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
+
     else:
         st.write(f"The deadline for submitting expenses has passed. No more expenses can be entered after {deadline}.")
+
 
 
 
@@ -253,6 +259,7 @@ def app():
                             <p><strong>Date: </strong>{entry['expense_date']}</p>
                             <p><strong>Amount:</strong> CHF {entry['exact_amount']}</p>
                             <p><strong>Priority:</strong> {entry['priority']}</p>
+                            <p><strong>Status:</strong> {entry['status']}</p>
                         </div>
                         """
                         # Den gesamten Container in der Spalte anzeigen
@@ -267,6 +274,7 @@ def app():
                             <p><strong>Date: </strong>{entry['expense_date']}</p>
                             <p><strong>Amount:</strong> CHF {entry['estimated']} / {entry['conservative']} / {entry['worst_case']}</p>
                             <p><strong>Priority:</strong> {entry['priority']}</p>
+                            <p><strong>Status:</strong> {entry['status']}</p>
                         </div>
                         """
                         # Den gesamten Container in der Spalte anzeigen
@@ -309,69 +317,69 @@ def app():
                 cursor.close()
                 connection.close()
 
+    if current_date <= deadline:
+        # ID-Eingabefeld zum Löschen
+        st.write("")
+        st.subheader("Delete an expense")
+        expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
 
-    # ID-Eingabefeld zum Löschen
-    st.write("")
-    st.subheader("Delete an expense")
-    expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
-
-    # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
-    if "checked_expense" not in st.session_state:
-        st.session_state["checked_expense"] = None
-
-    # Button "Check" zur Überprüfung des Eintrags
-    if st.button("Check"):
-        if expense_id_to_delete:
-            try:
-                # Verbindung zur Datenbank herstellen
-                connection = psycopg2.connect(
-                    host=os.getenv("DB_HOST"),
-                    port=os.getenv("DB_PORT"),
-                    dbname=os.getenv("DB_NAME"),
-                    user=os.getenv("DB_USER"),
-                    password=os.getenv("DB_PASSWORD")
-                )
-                cursor = connection.cursor()
-
-                # SQL-Abfrage, um den Eintrag mit der spezifischen ID und dem eingeloggten Projekt zu finden
-                cursor.execute("SELECT * FROM expenses WHERE id = %s AND project = %s;", (expense_id_to_delete, st.session_state["user"]))
-                entry = cursor.fetchone()
-                
-                if entry:
-                    st.session_state["checked_expense"] = entry  # Speichere den Eintrag im Session-State
-                else:
-                    st.error(f"No entry found with ID {expense_id_to_delete} for your project")
-            except Exception as error:
-                st.error(f"Error fetching expense: {error}")
-            finally:
-                if connection:
-                    cursor.close()
-                    connection.close()
-
-    # Zeige den überprüften Eintrag an, wenn er im Session-State vorhanden ist
-    if st.session_state["checked_expense"]:
-        entry = st.session_state["checked_expense"]
-        container_content = f"""
-            <div style='background-color: #ADD8E6; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
-                <p><strong>ID: </strong>{entry[0]}</p>
-                <h4>{entry[2]}</h4>
-                <p>{entry[3]}</p>
-                <p><strong>Date: </strong>{entry[4]}</p>
-                <p><strong>Amount: </strong>CHF {entry[5] if entry[5] is not None else f"{entry[6]} / {entry[7]} / {entry[8]}"}</p>
-                <p><strong>Priority: </strong>{entry[9]}</p>
-            </div>
-            """
-        st.markdown(container_content, unsafe_allow_html=True)
-        
-        # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
-        if st.button("Delete"):
-            delete_expense_by_id(expense_id_to_delete)
-            # Nach dem Löschen den Eintrag aus dem Session-State entfernen
+        # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
+        if "checked_expense" not in st.session_state:
             st.session_state["checked_expense"] = None
+
+        # Button "Check" zur Überprüfung des Eintrags
+        if st.button("Check"):
+            if expense_id_to_delete:
+                try:
+                    # Verbindung zur Datenbank herstellen
+                    connection = psycopg2.connect(
+                        host=os.getenv("DB_HOST"),
+                        port=os.getenv("DB_PORT"),
+                        dbname=os.getenv("DB_NAME"),
+                        user=os.getenv("DB_USER"),
+                        password=os.getenv("DB_PASSWORD")
+                    )
+                    cursor = connection.cursor()
+
+                    # SQL-Abfrage, um den Eintrag mit der spezifischen ID und dem eingeloggten Projekt zu finden
+                    cursor.execute("SELECT * FROM expenses WHERE id = %s AND project = %s;", (expense_id_to_delete, st.session_state["user"]))
+                    entry = cursor.fetchone()
+                    
+                    if entry:
+                        st.session_state["checked_expense"] = entry  # Speichere den Eintrag im Session-State
+                    else:
+                        st.error(f"No entry found with ID {expense_id_to_delete} for your project")
+                except Exception as error:
+                    st.error(f"Error fetching expense: {error}")
+                finally:
+                    if connection:
+                        cursor.close()
+                        connection.close()
+
+        # Zeige den überprüften Eintrag an, wenn er im Session-State vorhanden ist
+        if st.session_state["checked_expense"]:
+            entry = st.session_state["checked_expense"]
+            container_content = f"""
+                <div style='background-color: #ADD8E6; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
+                    <p><strong>ID: </strong>{entry[0]}</p>
+                    <h4>{entry[2]}</h4>
+                    <p>{entry[3]}</p>
+                    <p><strong>Date: </strong>{entry[4]}</p>
+                    <p><strong>Amount: </strong>CHF {entry[5] if entry[5] is not None else f"{entry[6]} / {entry[7]} / {entry[8]}"}</p>
+                    <p><strong>Priority: </strong>{entry[9]}</p>
+                </div>
+                """
+            st.markdown(container_content, unsafe_allow_html=True)
             
-            # Füge einen Button hinzu, um die App neu zu laden
-            if st.button("Refresh to view changes"):
-                st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
+            # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
+            if st.button("Delete"):
+                delete_expense_by_id(expense_id_to_delete)
+                # Nach dem Löschen den Eintrag aus dem Session-State entfernen
+                st.session_state["checked_expense"] = None
+                
+                # Füge einen Button hinzu, um die App neu zu laden
+                if st.button("Refresh to view changes"):
+                    st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
 
 
 
