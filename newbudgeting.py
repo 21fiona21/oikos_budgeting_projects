@@ -142,8 +142,6 @@ def app():
 
     # Überprüfen, ob das aktuelle Datum vor oder gleich der Deadline liegt
     if current_date <= deadline:
-        with st.expander("Instructions"):
-            st.write("Instructions go here")
 
         st.write("")
 
