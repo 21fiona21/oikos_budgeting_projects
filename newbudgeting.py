@@ -105,7 +105,34 @@ def app():
     st.write("")
 
     with st.expander("Instructions"):
-        st.write("Instructions go here")
+        st.markdown("""
+        This tool helps you submit upcoming expenses for board approval. Each project is guaranteed funding up to the profit made last semester. However, please submit all foreseeable expenses, not just those exceeding your budget, so the board can allocate funds effectively. This also allows the board to potentially help reduce costs by negotiating better offers or managing expenses collectively.
+        
+        **Categorizing Expenses:**  
+        Group related expenses together where it makes sense. For example, ordering food for an event can be submitted as one expense rather than itemizing each food item. However, different services (e.g., event venue, catering, security, and transport) should be submitted separately, as they come from different providers and have distinct cost structures.
+        
+        When entering expenses, indicate whether the amount is confirmed or estimated. If it's confirmed (e.g., due to a binding offer or invoice), enter the exact amount. For estimated expenses, provide three values:
+        
+        * **Estimated:** What you realistically expect the expense to be.
+        * **Conservative:** A slightly higher estimate to cover potential variations.
+        * **Worst-case:** The maximum amount you might need if things go wrong (e.g., alternative options or last-minute changes).
+        
+        Finally, indicate whether the expense is tied to a specific date. If it's linked to an event or deadline (e.g., catering for a scheduled event), select "specific date known" and enter the date you need the money by. If the date is unknown, select "Specific date unknown." If the expense is not tied to a date and order(s) can be placed any time during the semester, for example, for general materials, select "Not associated with a specific date."
+
+        **Entering a New Expense:**  
+        To add an expense, fill in the mandatory fields for the title and description. Specify if the expense has a known date, and if so, enter it. For exact costs, input the amount directly. For estimated expenses, select "Estimation" and enter the estimated, conservative, and worst-case values.
+
+        Set the priority of your expense (1 being the highest). **Note:** Priority helps you organize your expenses and guides the board’s efforts to optimize overall project spending, but it does not guarantee approval. Be honest in assessing what’s most important for your project.
+
+        After submitting an expense, click on the "Refresh to view changes" button to see your updates.
+
+        **Deleting an Expense:**  
+        If you need to delete an expense, enter the ID of the expense and click the "Check" button to view the details. Once confirmed, you can click "Delete" to remove the entry.
+
+        **Expense Submission Deadline:**  
+        You can enter and modify expenses until **October 27, 2024**. After this deadline, you will still be able to view your expenses, but no further changes or submissions will be allowed.
+        """)
+
 
     st.write("")
 
@@ -174,12 +201,11 @@ def app():
         if st.button("Submit"):
             if title and description:
                 insert_expense(title, description, date, exact_amount, estimated, conservative, worst_case, priority)
+                # Füge einen Button hinzu, um die App neu zu laden
+                if st.button("Refresh to view changes"):
+                    st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
             else:
                 st.error("Both Title and Description are mandatory fields!")
-
-        # Füge einen Button hinzu, um die App neu zu laden
-        if st.button("Refresh to view changes"):
-            st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
 
     else:
         st.write(f"The deadline for submitting expenses has passed. No more expenses can be entered after {deadline}.")
@@ -360,13 +386,14 @@ def app():
         if st.session_state["checked_expense"]:
             entry = st.session_state["checked_expense"]
             container_content = f"""
-                <div style='background-color: #ADD8E6; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
+                <div style='background-color: {color}, padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
                     <p><strong>ID: </strong>{entry[0]}</p>
                     <h4>{entry[2]}</h4>
                     <p>{entry[3]}</p>
                     <p><strong>Date: </strong>{entry[4]}</p>
                     <p><strong>Amount: </strong>CHF {entry[5] if entry[5] is not None else f"{entry[6]} / {entry[7]} / {entry[8]}"}</p>
                     <p><strong>Priority: </strong>{entry[9]}</p>
+                    <p><strong>Status: </strong>{entry[10]}</p>
                 </div>
                 """
             st.markdown(container_content, unsafe_allow_html=True)
