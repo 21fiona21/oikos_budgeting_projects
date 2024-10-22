@@ -184,7 +184,7 @@ def app():
                     worst_case = st.number_input("Worst-case amount in CHF")
 
         # Eingabe für Priorität
-        priority = st.number_input("Priority of the expense", min_value=1, max_value=5)
+        priority = st.number_input("Priority of the expense (1 is the highest priority)", min_value=1, max_value=5)
 
         # Submit-Button rechtsbündig
         st.markdown("""
