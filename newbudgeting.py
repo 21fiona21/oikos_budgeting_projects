@@ -137,7 +137,7 @@ def app():
     st.write("")
 
     # Festgelegte Deadline (01.11.2024)
-    deadline = datetime.date(2024, 11, 01)
+    deadline = datetime.date(2024, 11, 1)
     current_date = datetime.date.today()
 
     # Überprüfen, ob das aktuelle Datum vor oder gleich der Deadline liegt
