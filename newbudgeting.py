@@ -130,14 +130,14 @@ def app():
         If you need to delete an expense, enter the ID of the expense and click the "Check" button to view the details. Once confirmed, you can click "Delete" to remove the entry.
 
         **Expense Submission Deadline:**  
-        You can enter and modify expenses until **October 27, 2024**. After this deadline, you will still be able to view your expenses, but no further changes or submissions will be allowed.
+        You can enter and modify expenses until (and including) **November 1, 2024**. After this deadline, you will still be able to view your expenses, but no further changes or submissions will be allowed.
         """)
 
 
     st.write("")
 
-    # Festgelegte Deadline (27.10.2024)
-    deadline = datetime.date(2024, 10, 27)
+    # Festgelegte Deadline (01.11.2024)
+    deadline = datetime.date(2024, 11, 01)
     current_date = datetime.date.today()
 
     # Überprüfen, ob das aktuelle Datum vor oder gleich der Deadline liegt
