@@ -104,8 +104,6 @@ def app():
             # Eintrag in DynamoDB speichern
             table.put_item(Item=expense_item)
             st.success(f"Expense successfully saved!")
-            if st.button("Refresh to view changes"):
-                st.rerun()
     
         except Exception as error:
             st.error(f"Error saving expense: {error}")
@@ -213,7 +211,7 @@ def app():
             if title and description:
                 insert_expense(title, description, date, exact_amount, estimated, conservative, worst_case, priority)
                 # Füge einen Button hinzu, um die App neu zu laden
-                if st.button("Refresh to view changes "):
+                if st.button("Refresh to view changes"):
                     st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
             else:
                 st.error("Both Title and Description are mandatory fields!")
