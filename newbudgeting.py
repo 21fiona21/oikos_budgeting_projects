@@ -4,6 +4,18 @@ import psycopg2
 import hashlib
 import os
 import datetime
+import boto3
+
+# AWS DynamoDB-Client initialisieren
+dynamodb = boto3.resource(
+    "dynamodb",
+    region_name=os.getenv("AWS_REGION"),
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+)
+
+table_name = "oikos_budgeting"  # Gleicher Tabellenname wie bei der Leitung
+table = dynamodb.Table(table_name)
 
 # Benutzer und gehashte Passwörter
 users = {
@@ -69,35 +81,36 @@ def app():
     # Funktion zum Einfügen der Daten in die PostgreSQL-Datenbank
     def insert_expense(title, description, date, exact_amount, estimated, conservative, worst_case, priority):
         try:
-            # Verbindung zur PostgreSQL-Datenbank herstellen
-            connection = psycopg2.connect(
-                host=os.getenv("DB_HOST"),
-                port=os.getenv("DB_PORT"),
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD")
-            )
-            
-            cursor = connection.cursor()
-            
-            # Daten in die Tabelle expenses einfügen
-            cursor.execute("""
-                INSERT INTO expenses (project, title, description, expense_date, exact_amount, estimated, conservative, worst_case, priority, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """, (project_name, title, description, date, exact_amount, estimated, conservative, worst_case, priority, 'not assigned'))
-
-            
-            connection.commit()
-            st.success("Expense successfully saved!")
-        
+            # Generiere eine fortlaufende ID
+            response = table.scan(ProjectionExpression="id")
+            existing_ids = [int(item["id"]) for item in response.get("Items", []) if item["id"].isdigit()]
+            expense_id = str(max(existing_ids) + 1) if existing_ids else "1"
+    
+            # Erstelle das Item mit den richtigen Datentypen
+            expense_item = {
+                "id": expense_id,
+                "project": project_name,
+                "title": title,
+                "description": description,
+                "expense_date": str(date) if date else None,
+                "exact_amount": str(exact_amount) if exact_amount else None,
+                "estimated": str(estimated) if estimated else None,
+                "conservative": str(conservative) if conservative else None,
+                "worst_case": str(worst_case) if worst_case else None,
+                "priority": int(priority) if priority else None,
+                "status": "not assigned"  # Projekte können den Status nicht ändern
+            }
+    
+            # Eintrag in DynamoDB speichern
+            table.put_item(Item=expense_item)
+            st.success(f"Expense successfully saved!")
+            if st.button("Refresh to view changes"):
+                st.rerun()
+    
         except Exception as error:
             st.error(f"Error saving expense: {error}")
-        
-        finally:
-            if connection:
-                cursor.close()
-                connection.close()
 
+    
     # Streamlit Form für die Eingabe
     st.title("Hey oikee!")
     st.subheader(f"Welcome to the oikos budgeting tool. You are logged in as {project_name}")
@@ -215,38 +228,69 @@ def app():
     # Funktion zum Laden der Daten aus der Datenbank
     def load_data_from_db():
         try:
-            # Verbindung zur PostgreSQL-Datenbank herstellen
-            connection = psycopg2.connect(
-                host=os.getenv("DB_HOST"),
-                port=os.getenv("DB_PORT"),
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD")
-            )
-            
-            cursor = connection.cursor()
-            
-            # SQL-Abfrage, um alle Daten aus der Tabelle expenses zu laden
-            cursor.execute("SELECT * FROM expenses;")
-            
-            # Alle Daten abrufen
-            rows = cursor.fetchall()
+            response = table.scan()
+            data = response.get("Items", [])
+    
+            if not data:
+                return pd.DataFrame(columns=["id", "project", "title", "description", "expense_date", 
+                                             "exact_amount", "estimated", "conservative", "worst_case", "priority", "status"])
+    
+            # Konvertiere Werte in die richtigen Datentypen
+            for item in data:
+                if 'exact_amount' in item:
+                    item['exact_amount'] = float(item['exact_amount']) if item['exact_amount'] not in [None, ""] else None
+                if 'estimated' in item:
+                    item['estimated'] = float(item['estimated']) if item['estimated'] not in [None, ""] else None
+                if 'conservative' in item:
+                    item['conservative'] = float(item['conservative']) if item['conservative'] not in [None, ""] else None
+                if 'worst_case' in item:
+                    item['worst_case'] = float(item['worst_case']) if item['worst_case'] not in [None, ""] else None
+                if 'priority' in item:
+                    item['priority'] = int(item['priority']) if item['priority'] not in [None, ""] else None
+                if 'id' in item:
+                    item['id'] = str(item['id'])
+                if 'project' in item:
+                    item['project'] = str(item['project'])
+                if 'title' in item:
+                    item['title'] = str(item['title'])
+                if 'description' in item:
+                    item['description'] = str(item['description'])
+                if 'expense_date' in item:
+                    item['expense_date'] = str(item['expense_date'])
+                if 'status' in item:
+                    item['status'] = str(item['status'])
+    
+            df = pd.DataFrame(data)
+    
+            # Fehlende Spalten hinzufügen
+            required_columns = ["id", "project", "title", "description", "expense_date", 
+                                "exact_amount", "estimated", "conservative", "worst_case", "priority", "status"]
+            for col in required_columns:
+                if col not in df.columns:
+                    df[col] = None
+    
+            # Setze Datentypen explizit
+            df = df.astype({
+                "id": str,
+                "project": str,
+                "title": str,
+                "description": str,
+                "expense_date": str,
+                "exact_amount": "float64",
+                "estimated": "float64",
+                "conservative": "float64",
+                "worst_case": "float64",
+                "priority": "Int64",  # Int64 erlaubt auch NaN
+                "status": str
+            }, errors="ignore")
+    
+            return df
+    
+        except Exception as e:
+            st.error(f"Error connecting to DynamoDB: {e}")
+            return pd.DataFrame()
 
-            # Spaltennamen der Tabelle abrufen
-            colnames = [desc[0] for desc in cursor.description]
-
-            # Konvertiere die Daten in einen Pandas DataFrame
-            df = pd.DataFrame(rows, columns=colnames)
-            
-            return df  # DataFrame zurückgeben
-        
-        except Exception as error:
-            print(f"Error loading data from PostgreSQL: {error}")
-        
-        finally:
-            if connection:
-                cursor.close()
-                connection.close()
+    
 
     # Calls DF
     df = load_data_from_db()
@@ -273,7 +317,7 @@ def app():
                 if i + j < len(df_projectspecific):  # Überprüfe, ob der Index gültig ist
                     entry = df_projectspecific.iloc[i + j]
                     
-                    if entry['exact_amount'] is not None:
+                    if entry['exact_amount'] and entry['exact_amount'] > 0:
                         # Container-Inhalt als HTML-Markdown
                         container_content = f"""
                         <div style='background-color: {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
@@ -296,7 +340,7 @@ def app():
                             <h4>{entry['title']}</h4>
                             <p>{entry['description']}</p>
                             <p><strong>Date: </strong>{entry['expense_date']}</p>
-                            <p><strong>Amount:</strong> CHF {entry['estimated']} / {entry['conservative']} / {entry['worst_case']}</p>
+                            <p><strong>Amount:</strong> CHF {entry['exact_amount'] if entry['exact_amount'] and entry['exact_amount'] > 0 else (f"{entry['estimated']} / {entry['conservative']} / {entry['worst_case']}" if entry['estimated'] and entry['conservative'] and entry['worst_case'] else 'N/A')}</p>
                             <p><strong>Priority:</strong> {entry['priority']}</p>
                             <p><strong>Status:</strong> {entry['status']}</p>
                         </div>
@@ -314,33 +358,14 @@ def app():
     # Funktion zum Löschen eines Eintrags aus der PostgreSQL-Datenbank
     def delete_expense_by_id(expense_id):
         try:
-            connection = psycopg2.connect(
-                host=os.getenv("DB_HOST"),
-                port=os.getenv("DB_PORT"),
-                dbname=os.getenv("DB_NAME"),
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD")
-            )
-            cursor = connection.cursor()
-
-            # SQL-Befehl zum Löschen des Eintrags mit der spezifischen ID
-            cursor.execute("DELETE FROM expenses WHERE id = %s RETURNING id;", (expense_id,))
-            deleted_id = cursor.fetchone()  # Überprüfen, ob eine Zeile gelöscht wurde
-            connection.commit()
-
-            if deleted_id:
-                st.success(f"Expense with ID {expense_id} successfully deleted!")
-            else:
-                st.error(f"No expense found with ID {expense_id}.")
-        
+            table.delete_item(Key={"id": str(expense_id)})
+            st.success(f"Expense successfully deleted!")
+            if st.button("Refresh to view changes"):
+                st.rerun()
         except Exception as error:
             st.error(f"Error deleting expense: {error}")
-        
-        finally:
-            if connection:
-                cursor.close()
-                connection.close()
 
+    
     if current_date <= deadline:
         # ID-Eingabefeld zum Löschen
         st.write("")
