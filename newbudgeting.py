@@ -356,74 +356,77 @@ def app():
     # Funktion zum Löschen eines Eintrags aus der PostgreSQL-Datenbank
     def delete_expense_by_id(expense_id):
         try:
+            # Prüfen, ob die Expense zur angemeldeten Gruppe gehört
+            response = table.get_item(Key={"id": str(expense_id)})
+            item = response.get("Item")
+    
+            if not item:
+                st.error("No expense found with this ID.")
+                return
+    
+            if item["project"] != st.session_state["user"]:
+                st.error("You can only delete expenses from your own project.")
+                return
+    
+            # Löschen des Eintrags aus DynamoDB
             table.delete_item(Key={"id": str(expense_id)})
             st.success(f"Expense successfully deleted!")
+    
+            # Reload-Button anbieten
             if st.button("Refresh to view changes"):
                 st.rerun()
+    
         except Exception as error:
             st.error(f"Error deleting expense: {error}")
 
+
     
-    if current_date <= deadline:
-        # ID-Eingabefeld zum Löschen
-        st.write("")
-        st.subheader("Delete an expense")
-        expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
-
-        # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
-        if "checked_expense" not in st.session_state:
-            st.session_state["checked_expense"] = None
-
-        # Button "Check" zur Überprüfung des Eintrags
-        if st.button("Check"):
-            if expense_id_to_delete:
-                try:
-                    # Verbindung zur Datenbank herstellen
-                    connection = psycopg2.connect(
-                        host=os.getenv("DB_HOST"),
-                        port=os.getenv("DB_PORT"),
-                        dbname=os.getenv("DB_NAME"),
-                        user=os.getenv("DB_USER"),
-                        password=os.getenv("DB_PASSWORD")
-                    )
-                    cursor = connection.cursor()
-
-                    # SQL-Abfrage, um den Eintrag mit der spezifischen ID und dem eingeloggten Projekt zu finden
-                    cursor.execute("SELECT * FROM expenses WHERE id = %s AND project = %s;", (expense_id_to_delete, st.session_state["user"]))
-                    entry = cursor.fetchone()
-                    
-                    if entry:
-                        st.session_state["checked_expense"] = entry  # Speichere den Eintrag im Session-State
-                    else:
-                        st.error(f"No entry found with ID {expense_id_to_delete} for your project")
-                except Exception as error:
-                    st.error(f"Error fetching expense: {error}")
-                finally:
-                    if connection:
-                        cursor.close()
-                        connection.close()
-
-        # Zeige den überprüften Eintrag an, wenn er im Session-State vorhanden ist
-        if st.session_state["checked_expense"]:
-            entry = st.session_state["checked_expense"]
-            container_content = f"""
-                <div style='background-color: {color}, padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
-                    <p><strong>ID: </strong>{entry[0]}</p>
-                    <h4>{entry[2]}</h4>
-                    <p>{entry[3]}</p>
-                    <p><strong>Date: </strong>{entry[4]}</p>
-                    <p><strong>Amount: </strong>CHF {entry[5] if entry[5] is not None else f"{entry[6]} / {entry[7]} / {entry[8]}"}</p>
-                    <p><strong>Priority: </strong>{entry[9]}</p>
-                    <p><strong>Status: </strong>{entry[10]}</p>
-                </div>
-                """
-            st.markdown(container_content, unsafe_allow_html=True)
-            
-            # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
-            if st.button("Delete"):
-                delete_expense_by_id(expense_id_to_delete)
-                # Nach dem Löschen den Eintrag aus dem Session-State entfernen
+        if current_date <= deadline:
+            # ID-Eingabefeld zum Löschen
+            st.write("")
+            st.subheader("Delete an expense")
+            expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
+        
+            # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
+            if "checked_expense" not in st.session_state:
                 st.session_state["checked_expense"] = None
+        
+            # Button "Check" zur Überprüfung des Eintrags
+            if st.button("Check"):
+                if expense_id_to_delete:
+                    try:
+                        response = table.get_item(Key={"id": str(expense_id_to_delete)})
+                        item = response.get("Item")
+        
+                        if item and item["project"] == st.session_state["user"]:
+                            st.session_state["checked_expense"] = item
+                        else:
+                            st.error(f"No entry found with ID {expense_id_to_delete} for your project.")
+                            st.session_state["checked_expense"] = None
+        
+                    except Exception as error:
+                        st.error(f"Error fetching expense: {error}")
+        
+            # Zeige den überprüften Eintrag an, wenn vorhanden
+            if st.session_state["checked_expense"]:
+                entry = st.session_state["checked_expense"]
+                container_content = f"""
+                    <div style='background-color: {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
+                        <p><strong>ID: </strong>{entry['id']}</p>
+                        <h4>{entry['title']}</h4>
+                        <p>{entry['description']}</p>
+                        <p><strong>Date: </strong>{entry['expense_date']}</p>
+                        <p><strong>Amount: </strong>CHF {entry['exact_amount'] if entry['exact_amount'] else f"{entry['estimated']} / {entry['conservative']} / {entry['worst_case']}"}</p>
+                        <p><strong>Priority: </strong>{entry['priority']}</p>
+                        <p><strong>Status: </strong>{entry['status']}</p>
+                    </div>
+                    """
+                st.markdown(container_content, unsafe_allow_html=True)
+        
+                # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
+                if st.button("Delete"):
+                    delete_expense_by_id(expense_id_to_delete)
+                    st.session_state["checked_expense"] = None  # Zurücksetzen nach dem Löschen
                 
                 # Füge einen Button hinzu, um die App neu zu laden
                 if st.button("Refresh to view changes"):
