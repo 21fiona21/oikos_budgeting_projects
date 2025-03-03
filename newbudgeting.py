@@ -353,7 +353,7 @@ def app():
     st.write("")
     st.write("")
 
-    # Funktion zum Löschen eines Eintrags aus der PostgreSQL-Datenbank
+    # Funktion zum Löschen eines Eintrags
     def delete_expense_by_id(expense_id):
         try:
             # Prüfen, ob die Expense zur angemeldeten Gruppe gehört
@@ -378,59 +378,59 @@ def app():
     
         except Exception as error:
             st.error(f"Error deleting expense: {error}")
-
-
     
-        if current_date <= deadline:
-            # ID-Eingabefeld zum Löschen
-            st.write("")
-            st.subheader("Delete an expense")
-            expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
-        
-            # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
-            if "checked_expense" not in st.session_state:
-                st.session_state["checked_expense"] = None
-        
-            # Button "Check" zur Überprüfung des Eintrags
-            if st.button("Check"):
-                if expense_id_to_delete:
-                    try:
-                        response = table.get_item(Key={"id": str(expense_id_to_delete)})
-                        item = response.get("Item")
-        
-                        if item and item["project"] == st.session_state["user"]:
-                            st.session_state["checked_expense"] = item
-                        else:
-                            st.error(f"No entry found with ID {expense_id_to_delete} for your project.")
-                            st.session_state["checked_expense"] = None
-        
-                    except Exception as error:
-                        st.error(f"Error fetching expense: {error}")
-        
-            # Zeige den überprüften Eintrag an, wenn vorhanden
-            if st.session_state["checked_expense"]:
-                entry = st.session_state["checked_expense"]
-                container_content = f"""
-                    <div style='background-color: {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
-                        <p><strong>ID: </strong>{entry['id']}</p>
-                        <h4>{entry['title']}</h4>
-                        <p>{entry['description']}</p>
-                        <p><strong>Date: </strong>{entry['expense_date']}</p>
-                        <p><strong>Amount: </strong>CHF {entry['exact_amount'] if entry['exact_amount'] else f"{entry['estimated']} / {entry['conservative']} / {entry['worst_case']}"}</p>
-                        <p><strong>Priority: </strong>{entry['priority']}</p>
-                        <p><strong>Status: </strong>{entry['status']}</p>
-                    </div>
-                    """
-                st.markdown(container_content, unsafe_allow_html=True)
-        
-                # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
-                if st.button("Delete"):
-                    delete_expense_by_id(expense_id_to_delete)
-                    st.session_state["checked_expense"] = None  # Zurücksetzen nach dem Löschen
-                
-                # Füge einen Button hinzu, um die App neu zu laden
-                if st.button("Refresh to view changes"):
-                    st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
+    
+    # **Hier beginnt ein neuer Codeblock – er gehört NICHT in die Funktion!**
+    if current_date <= deadline:
+        # ID-Eingabefeld zum Löschen
+        st.write("")
+        st.subheader("Delete an expense")
+        expense_id_to_delete = st.number_input("Enter the ID of the expense you want to delete", step=1)
+    
+        # Verwende Session-State, um den Zustand des überprüften Eintrags zu speichern
+        if "checked_expense" not in st.session_state:
+            st.session_state["checked_expense"] = None
+    
+        # Button "Check" zur Überprüfung des Eintrags
+        if st.button("Check"):
+            if expense_id_to_delete:
+                try:
+                    response = table.get_item(Key={"id": str(expense_id_to_delete)})
+                    item = response.get("Item")
+    
+                    if item and item["project"] == st.session_state["user"]:
+                        st.session_state["checked_expense"] = item
+                    else:
+                        st.error(f"No entry found with ID {expense_id_to_delete} for your project.")
+                        st.session_state["checked_expense"] = None
+    
+                except Exception as error:
+                    st.error(f"Error fetching expense: {error}")
+    
+        # Zeige den überprüften Eintrag an, wenn vorhanden
+        if st.session_state["checked_expense"]:
+            entry = st.session_state["checked_expense"]
+            container_content = f"""
+                <div style='background-color: {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
+                    <p><strong>ID: </strong>{entry['id']}</p>
+                    <h4>{entry['title']}</h4>
+                    <p>{entry['description']}</p>
+                    <p><strong>Date: </strong>{entry['expense_date']}</p>
+                    <p><strong>Amount: </strong>CHF {entry['exact_amount'] if entry['exact_amount'] else f"{entry['estimated']} / {entry['conservative']} / {entry['worst_case']}"}</p>
+                    <p><strong>Priority: </strong>{entry['priority']}</p>
+                    <p><strong>Status: </strong>{entry['status']}</p>
+                </div>
+                """
+            st.markdown(container_content, unsafe_allow_html=True)
+    
+            # Button zum Löschen anzeigen, nachdem der Eintrag angezeigt wurde
+            if st.button("Delete"):
+                delete_expense_by_id(expense_id_to_delete)
+                st.session_state["checked_expense"] = None  # Zurücksetzen nach dem Löschen
+    
+            # Füge einen Button hinzu, um die App neu zu laden
+            if st.button("Refresh to view changes"):
+                st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
 
 
 
