@@ -428,10 +428,6 @@ def app():
                 delete_expense_by_id(expense_id_to_delete)
                 st.session_state["checked_expense"] = None  # Zurücksetzen nach dem Löschen
     
-            # Füge einen Button hinzu, um die App neu zu laden
-            if st.button("Refresh to view changes"):
-                st.rerun()  # Lädt die App neu, ohne dass sich der Benutzer erneut einloggen muss
-
 
 
 
