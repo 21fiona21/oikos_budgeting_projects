@@ -2,3 +2,4 @@ pandas
 streamlit
 psycopg2-binary
 datetime
+boto3
